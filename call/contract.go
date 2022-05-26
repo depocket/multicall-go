@@ -24,15 +24,16 @@ type Method struct {
 	StateMutability string     `json:"stateMutability"`
 }
 
-type ICallContractBuilder interface {
-	AddMethod(signature string) *Contract
-	AddCall(callName string, contractAddress string, method string, args ...interface{}) *Contract
-	Call(blockNumber *big.Int) (*big.Int, map[string]core.CallResponse, error)
+type ContractBuilder interface {
+	WithClient(ethClient *ethclient.Client) ContractBuilder
+	AtAddress(contractAddress string) ContractBuilder
+	AddMethod(signature string) ContractBuilder
 	Abi() abi.ABI
-	ClearCall()
+	Build() *contract
 }
 
-type Contract struct {
+type contract struct {
+	ethClient   *ethclient.Client
 	contractAbi abi.ABI
 	rawMethods  map[string]string
 	methods     []Method
@@ -40,20 +41,29 @@ type Contract struct {
 	multiCaller *core.MultiCaller
 }
 
-func NewContract(ethClient *ethclient.Client, multiCallContract string) *Contract {
-	caller, err := core.NewMultiCaller(ethClient, common.HexToAddress(multiCallContract))
+func NewContractBuilder() ContractBuilder {
+	return &contract{}
+}
+
+func (a *contract) WithClient(ethClient *ethclient.Client) ContractBuilder {
+	a.ethClient = ethClient
+	return a
+}
+
+func (a *contract) Build() *contract {
+	return a
+}
+
+func (a *contract) AtAddress(address string) ContractBuilder {
+	caller, err := core.NewMultiCaller(a.ethClient, common.HexToAddress(address))
 	if err != nil {
 		panic(err)
 	}
-	return &Contract{
-		multiCaller: caller,
-		calls:       make([]core.Call, 0),
-		methods:     make([]Method, 0),
-		rawMethods:  make(map[string]string),
-	}
+	a.multiCaller = caller
+	return a
 }
 
-func (a *Contract) AddCall(callName string, contractAddress string, method string, args ...interface{}) *Contract {
+func (a *contract) AddCall(callName string, contractAddress string, method string, args ...interface{}) *contract {
 	callData, err := a.contractAbi.Pack(method, args...)
 	if err != nil {
 		panic(err)
@@ -67,7 +77,7 @@ func (a *Contract) AddCall(callName string, contractAddress string, method strin
 	return a
 }
 
-func (a *Contract) AddMethod(signature string) *Contract {
+func (a *contract) AddMethod(signature string) ContractBuilder {
 	existCall, ok := a.rawMethods[strings.ToLower(signature)]
 	if ok {
 		panic("Caller named " + existCall + " is exist on ABI")
@@ -85,7 +95,11 @@ func (a *Contract) AddMethod(signature string) *Contract {
 	return a
 }
 
-func (a *Contract) Call(blockNumber *big.Int) (*big.Int, map[string][]interface{}, error) {
+func (a *contract) Abi() abi.ABI {
+	return a.contractAbi
+}
+
+func (a *contract) Call(blockNumber *big.Int) (*big.Int, map[string][]interface{}, error) {
 	res := make(map[string][]interface{})
 	blockNumber, results, err := a.multiCaller.Execute(a.calls, blockNumber)
 	for _, call := range a.calls {
@@ -95,11 +109,7 @@ func (a *Contract) Call(blockNumber *big.Int) (*big.Int, map[string][]interface{
 	return blockNumber, res, err
 }
 
-func (a *Contract) Abi() abi.ABI {
-	return a.contractAbi
-}
-
-func (a *Contract) ClearCall() {
+func (a *contract) ClearCall() {
 	a.calls = []core.Call{}
 }
 
