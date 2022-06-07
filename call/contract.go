@@ -42,7 +42,11 @@ type contract struct {
 }
 
 func NewContractBuilder() ContractBuilder {
-	return &contract{}
+	return &contract{
+		calls:      make([]core.Call, 0),
+		methods:    make([]Method, 0),
+		rawMethods: make(map[string]string, 0),
+	}
 }
 
 func (a *contract) WithClient(ethClient *ethclient.Client) ContractBuilder {
