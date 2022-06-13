@@ -2,15 +2,16 @@ package call
 
 import (
 	"fmt"
+	"math/big"
+	"testing"
+
 	"github.com/depocket/multicall-go/utils"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
 )
 
 func TestAbiBuilder(t *testing.T) {
-	client, err := ethclient.Dial("https://bsc-dataseed1.ninicoin.io/")
+	client, _ := ethclient.Dial("https://bsc-dataseed1.ninicoin.io/")
 	demoBep20Abi := NewContractBuilder().WithClient(client).
 		AtAddress(BinanceChain).
 		AddMethod("function totalSupply()(uint256)").

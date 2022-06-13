@@ -2,12 +2,13 @@ package call
 
 import (
 	"encoding/json"
+	"math/big"
+	"strings"
+
 	"github.com/depocket/multicall-go/core"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"math/big"
-	"strings"
 )
 
 type Argument struct {
@@ -29,10 +30,10 @@ type ContractBuilder interface {
 	AtAddress(contractAddress string) ContractBuilder
 	AddMethod(signature string) ContractBuilder
 	Abi() abi.ABI
-	Build() *contract
+	Build() *Contract
 }
 
-type contract struct {
+type Contract struct {
 	ethClient   *ethclient.Client
 	contractAbi abi.ABI
 	rawMethods  map[string]string
@@ -42,23 +43,23 @@ type contract struct {
 }
 
 func NewContractBuilder() ContractBuilder {
-	return &contract{
+	return &Contract{
 		calls:      make([]core.Call, 0),
 		methods:    make([]Method, 0),
 		rawMethods: make(map[string]string, 0),
 	}
 }
 
-func (a *contract) WithClient(ethClient *ethclient.Client) ContractBuilder {
+func (a *Contract) WithClient(ethClient *ethclient.Client) ContractBuilder {
 	a.ethClient = ethClient
 	return a
 }
 
-func (a *contract) Build() *contract {
+func (a *Contract) Build() *Contract {
 	return a
 }
 
-func (a *contract) AtAddress(address string) ContractBuilder {
+func (a *Contract) AtAddress(address string) ContractBuilder {
 	caller, err := core.NewMultiCaller(a.ethClient, common.HexToAddress(address))
 	if err != nil {
 		panic(err)
@@ -67,7 +68,7 @@ func (a *contract) AtAddress(address string) ContractBuilder {
 	return a
 }
 
-func (a *contract) AddCall(callName string, contractAddress string, method string, args ...interface{}) *contract {
+func (a *Contract) AddCall(callName string, contractAddress string, method string, args ...interface{}) *Contract {
 	callData, err := a.contractAbi.Pack(method, args...)
 	if err != nil {
 		panic(err)
@@ -81,7 +82,7 @@ func (a *contract) AddCall(callName string, contractAddress string, method strin
 	return a
 }
 
-func (a *contract) AddMethod(signature string) ContractBuilder {
+func (a *Contract) AddMethod(signature string) ContractBuilder {
 	existCall, ok := a.rawMethods[strings.ToLower(signature)]
 	if ok {
 		panic("Caller named " + existCall + " is exist on ABI")
@@ -99,11 +100,11 @@ func (a *contract) AddMethod(signature string) ContractBuilder {
 	return a
 }
 
-func (a *contract) Abi() abi.ABI {
+func (a *Contract) Abi() abi.ABI {
 	return a.contractAbi
 }
 
-func (a *contract) Call(blockNumber *big.Int) (*big.Int, map[string][]interface{}, error) {
+func (a *Contract) Call(blockNumber *big.Int) (*big.Int, map[string][]interface{}, error) {
 	res := make(map[string][]interface{})
 	blockNumber, results, err := a.multiCaller.Execute(a.calls, blockNumber)
 	for _, call := range a.calls {
@@ -113,7 +114,7 @@ func (a *contract) Call(blockNumber *big.Int) (*big.Int, map[string][]interface{
 	return blockNumber, res, err
 }
 
-func (a *contract) ClearCall() {
+func (a *Contract) ClearCall() {
 	a.calls = []core.Call{}
 }
 
