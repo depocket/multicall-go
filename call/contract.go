@@ -28,9 +28,11 @@ type Method struct {
 type ContractBuilder interface {
 	WithClient(ethClient *ethclient.Client) ContractBuilder
 	AtAddress(contractAddress string) ContractBuilder
-	AddMethod(signature string) ContractBuilder
+	AddMethod(signature string) *Contract
 	Abi() abi.ABI
 	Build() *Contract
+	DefaultConfig(chain Chain) *Contract
+	CustomConfig(config ChainConfig) *Contract
 }
 
 type Contract struct {
@@ -48,6 +50,33 @@ func NewContractBuilder() ContractBuilder {
 		methods:    make([]Method, 0),
 		rawMethods: make(map[string]string, 0),
 	}
+}
+
+func (c *Contract) DefaultConfig(chain Chain) *Contract {
+	chainInfo, ok := Chains[chain]
+	if !ok {
+		panic("Invalid options. Chain is not supported")
+	}
+
+	client, err := ethclient.Dial(chainInfo.Url)
+	if err != nil {
+		panic(err)
+	}
+
+	return c.WithClient(client).AtAddress(chainInfo.MultiCallAddress).Build()
+}
+
+func (c *Contract) CustomConfig(config ChainConfig) *Contract {
+	if config.MultiCallAddress == "" || config.Url == "" {
+		panic("Invalid configuration. MultiCallAddress and Url must be set")
+	}
+
+	client, err := ethclient.Dial(config.Url)
+	if err != nil {
+		panic(err)
+	}
+
+	return c.WithClient(client).AtAddress(config.MultiCallAddress).Build()
 }
 
 func (a *Contract) WithClient(ethClient *ethclient.Client) ContractBuilder {
@@ -82,7 +111,7 @@ func (a *Contract) AddCall(callName string, contractAddress string, method strin
 	return a
 }
 
-func (a *Contract) AddMethod(signature string) ContractBuilder {
+func (a *Contract) AddMethod(signature string) *Contract {
 	existCall, ok := a.rawMethods[strings.ToLower(signature)]
 	if ok {
 		panic("Caller named " + existCall + " is exist on ABI")
