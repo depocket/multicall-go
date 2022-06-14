@@ -18,7 +18,7 @@ const (
 	Moonriver       = "moonriver"
 )
 
-var Chains = map[Chain]ChainConfig{
+var DefaultChainConfigs = map[Chain]ChainConfig{
 	Arbitrum: {
 		MultiCallAddress: "0x7a7443f8c577d537f1d8cd4a629d40a3148dd7ee",
 		Url:              "https://arb1.arbitrum.io/rpc",

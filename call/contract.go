@@ -31,8 +31,7 @@ type ContractBuilder interface {
 	AddMethod(signature string) *Contract
 	Abi() abi.ABI
 	Build() *Contract
-	DefaultConfig(chain Chain) *Contract
-	CustomConfig(config ChainConfig) *Contract
+	WithChainConfig(config ChainConfig) *Contract
 }
 
 type Contract struct {
@@ -45,28 +44,16 @@ type Contract struct {
 }
 
 func NewContractBuilder() ContractBuilder {
-	return &Contract{
+	contract := &Contract{
 		calls:      make([]core.Call, 0),
 		methods:    make([]Method, 0),
 		rawMethods: make(map[string]string, 0),
 	}
+
+	return contract.WithChainConfig(DefaultChainConfigs[Ethereum])
 }
 
-func (c *Contract) DefaultConfig(chain Chain) *Contract {
-	chainInfo, ok := Chains[chain]
-	if !ok {
-		panic("Invalid options. Chain is not supported")
-	}
-
-	client, err := ethclient.Dial(chainInfo.Url)
-	if err != nil {
-		panic(err)
-	}
-
-	return c.WithClient(client).AtAddress(chainInfo.MultiCallAddress).Build()
-}
-
-func (c *Contract) CustomConfig(config ChainConfig) *Contract {
+func (c *Contract) WithChainConfig(config ChainConfig) *Contract {
 	if config.MultiCallAddress == "" || config.Url == "" {
 		panic("Invalid configuration. MultiCallAddress and Url must be set")
 	}
