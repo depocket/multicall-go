@@ -8,7 +8,7 @@ type ChainConfig struct {
 }
 
 const (
-	Arbitrum  Chain = "Arbitrum"
+	Arbitrum  Chain = "arbitrum"
 	Aurora          = "aurora"
 	Avalanche       = "avalanche"
 	Bsc             = "bsc"
