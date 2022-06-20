@@ -16,6 +16,7 @@ const (
 	Fantom          = "fantom"
 	Moonbeam        = "moonbeam"
 	Moonriver       = "moonriver"
+	Celo            = "celo"
 )
 
 var DefaultChainConfigs = map[Chain]ChainConfig{
@@ -50,5 +51,9 @@ var DefaultChainConfigs = map[Chain]ChainConfig{
 	Moonriver: {
 		MultiCallAddress: "0xaef00a0cf402d9dedd54092d9ca179be6f9e5ce3",
 		Url:              "https://moonriver.public.blastapi.io",
+	},
+	Celo: {
+		MultiCallAddress: "0x7F4e475462A0fA0F1e2C69d50866D54505F99D72",
+		Url:              "https://forno.celo.org",
 	},
 }
