@@ -72,7 +72,7 @@ func TestContractBuilder_FlexibleCall(t *testing.T) {
 		if err != nil {
 			assert.Failf(t, "Error calling %s contract", string(chain))
 		} else {
-			assert.Equal(t, result["ts"][0].(*big.Int).Cmp(big.NewInt(0)), 1)
+			assert.Equal(t, result["ts"].ReturnData[0].(*big.Int).Cmp(big.NewInt(0)), 1)
 		}
 	}
 }

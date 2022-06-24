@@ -25,6 +25,11 @@ type Method struct {
 	StateMutability string     `json:"stateMutability"`
 }
 
+type Result struct {
+	Success    bool          `json:"success"`
+	ReturnData []interface{} `json:"return_data"`
+}
+
 type ContractBuilder interface {
 	WithClient(ethClient *ethclient.Client) ContractBuilder
 	AtAddress(contractAddress string) ContractBuilder
@@ -123,18 +128,46 @@ func (ct *Contract) Abi() abi.ABI {
 func (ct *Contract) Call(blockNumber *big.Int) (*big.Int, map[string][]interface{}, error) {
 	res := make(map[string][]interface{})
 	blockNumber, results, err := ct.multiCaller.StrictlyExecute(ct.calls, blockNumber)
+	if err != nil {
+		ct.ClearCall()
+		return nil, nil, err
+	}
 	for _, call := range ct.calls {
-		res[call.Key], _ = ct.contractAbi.Unpack(call.Method, results[call.Key].ReturnData)
+		res[call.Key], err = ct.contractAbi.Unpack(call.Method, results[call.Key].ReturnData)
+		if err != nil {
+			ct.ClearCall()
+			return nil, nil, err
+		}
 	}
 	ct.ClearCall()
 	return blockNumber, res, err
 }
 
-func (ct *Contract) FlexibleCall(requireSuccess bool) (map[string][]interface{}, error) {
-	res := make(map[string][]interface{})
+func (ct *Contract) FlexibleCall(requireSuccess bool) (map[string]Result, error) {
+	res := make(map[string]Result)
 	results, err := ct.multiCaller.Execute(ct.calls, requireSuccess)
+	if err != nil {
+		ct.ClearCall()
+		return nil, err
+	}
 	for _, call := range ct.calls {
-		res[call.Key], _ = ct.contractAbi.Unpack(call.Method, results[call.Key].ReturnData)
+		callSuccess := results[call.Key].Status
+		if callSuccess {
+			data, err := ct.contractAbi.Unpack(call.Method, results[call.Key].ReturnData)
+			if err != nil {
+				ct.ClearCall()
+				return nil, err
+			}
+			res[call.Key] = Result{
+				Success:    results[call.Key].Status,
+				ReturnData: data,
+			}
+		} else {
+			res[call.Key] = Result{
+				Success:    results[call.Key].Status,
+				ReturnData: nil,
+			}
+		}
 	}
 	ct.ClearCall()
 	return res, err
