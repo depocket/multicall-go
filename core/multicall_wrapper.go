@@ -22,42 +22,38 @@ type CallResponse struct {
 	ReturnData []byte `json:"returnData"`
 }
 
-func (call Call) GetMultiCall() MulticallCall {
-	return MulticallCall{Target: call.Target, CallData: call.CallData}
+func (call Call) GetMultiCall() MultiCall {
+	return MultiCall{Target: call.Target, CallData: call.CallData}
 }
 
-type MultiCaller struct {
+type Caller struct {
 	Client          *ethclient.Client
 	Abi             abi.ABI
 	ContractAddress common.Address
 }
 
-func NewMultiCaller(client *ethclient.Client, contractAddress common.Address) (*MultiCaller, error) {
-	mcAbi, err := abi.JSON(strings.NewReader(MultiCallABI))
+func NewCaller(client *ethclient.Client, contractAddress common.Address) (*Caller, error) {
+	mcAbi, err := abi.JSON(strings.NewReader(MultiMetaData.ABI))
 	if err != nil {
 		return nil, err
 	}
 
-	return &MultiCaller{
+	return &Caller{
 		Client:          client,
 		Abi:             mcAbi,
 		ContractAddress: contractAddress,
 	}, nil
 }
 
-func (caller *MultiCaller) Execute(calls []Call, blockNumber *big.Int) (*big.Int, map[string]CallResponse, error) {
-
-	var multiCalls = make([]MulticallCall, 0, len(calls))
-
+func (caller *Caller) Execute(calls []Call, blockNumber *big.Int) (*big.Int, map[string]CallResponse, error) {
+	var multiCalls = make([]MultiCall, 0, len(calls))
 	for _, call := range calls {
 		multiCalls = append(multiCalls, call.GetMultiCall())
 	}
-
 	callData, err := caller.Abi.Pack("aggregate", multiCalls)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	resp, err := caller.Client.CallContract(context.Background(), ethereum.CallMsg{To: &caller.ContractAddress, Data: callData}, blockNumber)
 	if err != nil {
 		return nil, nil, err

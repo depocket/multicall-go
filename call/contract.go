@@ -40,7 +40,7 @@ type Contract struct {
 	rawMethods  map[string]string
 	methods     []Method
 	calls       []core.Call
-	multiCaller *core.MultiCaller
+	multiCaller *core.Caller
 }
 
 func NewContractBuilder() ContractBuilder {
@@ -76,7 +76,7 @@ func (a *Contract) Build() *Contract {
 }
 
 func (a *Contract) AtAddress(address string) ContractBuilder {
-	caller, err := core.NewMultiCaller(a.ethClient, common.HexToAddress(address))
+	caller, err := core.NewCaller(a.ethClient, common.HexToAddress(address))
 	if err != nil {
 		panic(err)
 	}
