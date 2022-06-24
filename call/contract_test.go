@@ -19,6 +19,10 @@ var TestAddresses = map[Chain]string{
 	Moonriver: "0xE3F5a90F9cb311505cd691a46596599aA1A0AD7D",
 }
 
+var TestAddressesV2 = map[Chain]string{
+	Ethereum: "0xB8c77482e45F1F44dE1745F52C74426C631bDD52",
+}
+
 func TestContractBuilder_Default(t *testing.T) {
 	caller := NewContractBuilder().AddMethod("function totalSupply()(uint256)")
 	_, result, err := caller.
@@ -51,6 +55,20 @@ func TestContractBuilder_Call(t *testing.T) {
 			WithChainConfig(DefaultChainConfigs[chain]).
 			AddMethod("function totalSupply()(uint256)")
 		_, result, err := caller.AddCall("ts", address, "totalSupply").Call(nil)
+		if err != nil {
+			assert.Failf(t, "Error calling %s contract", string(chain))
+		} else {
+			assert.Equal(t, result["ts"][0].(*big.Int).Cmp(big.NewInt(0)), 1)
+		}
+	}
+}
+
+func TestContractBuilder_FlexibleCall(t *testing.T) {
+	for chain, address := range TestAddressesV2 {
+		caller := NewContractBuilder().
+			WithChainConfig(DefaultChainConfigs[chain]).
+			AddMethod("totalSupply()(uint256)")
+		result, err := caller.AddCall("ts", address, "totalSupply").FlexibleCall(false)
 		if err != nil {
 			assert.Failf(t, "Error calling %s contract", string(chain))
 		} else {
