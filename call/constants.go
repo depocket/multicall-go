@@ -37,7 +37,7 @@ var DefaultChainConfigs = map[Chain]ChainConfig{
 		Url:              "https://bsc-dataseed1.ninicoin.io",
 	},
 	Ethereum: {
-		MultiCallAddress: "0xeefba1e63905ef1d7acba5a8513c70307c1ce441",
+		MultiCallAddress: "0x5BA1e12693Dc8F9c48aAD8770482f4739bEeD696",
 		Url:              "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
 	},
 	Fantom: {
@@ -49,7 +49,7 @@ var DefaultChainConfigs = map[Chain]ChainConfig{
 		Url:              "https://moonbeam.public.blastapi.io",
 	},
 	Moonriver: {
-		MultiCallAddress: "0xaef00a0cf402d9dedd54092d9ca179be6f9e5ce3",
+		MultiCallAddress: "0xEae947bF407A4a4f1c5a6A73312734A2863e3855",
 		Url:              "https://moonriver.public.blastapi.io",
 	},
 	Celo: {

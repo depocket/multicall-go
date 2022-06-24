@@ -12,7 +12,7 @@ import (
 )
 
 type Argument struct {
-	Name         string `json:"name"`
+	Key          string `json:"key"`
 	Type         string `json:"type"`
 	InternalType string `json:"internalType"`
 }
@@ -40,7 +40,7 @@ type Contract struct {
 	rawMethods  map[string]string
 	methods     []Method
 	calls       []core.Call
-	multiCaller *core.Caller
+	multiCaller *core.MultiCaller
 }
 
 func NewContractBuilder() ContractBuilder {
@@ -53,7 +53,7 @@ func NewContractBuilder() ContractBuilder {
 	return contract.WithChainConfig(DefaultChainConfigs[Ethereum])
 }
 
-func (c *Contract) WithChainConfig(config ChainConfig) *Contract {
+func (ct *Contract) WithChainConfig(config ChainConfig) *Contract {
 	if config.MultiCallAddress == "" || config.Url == "" {
 		panic("Invalid configuration. MultiCallAddress and Url must be set")
 	}
@@ -63,75 +63,85 @@ func (c *Contract) WithChainConfig(config ChainConfig) *Contract {
 		panic(err)
 	}
 
-	return c.WithClient(client).AtAddress(config.MultiCallAddress).Build()
+	return ct.WithClient(client).AtAddress(config.MultiCallAddress).Build()
 }
 
-func (a *Contract) WithClient(ethClient *ethclient.Client) ContractBuilder {
-	a.ethClient = ethClient
-	return a
+func (ct *Contract) WithClient(ethClient *ethclient.Client) ContractBuilder {
+	ct.ethClient = ethClient
+	return ct
 }
 
-func (a *Contract) Build() *Contract {
-	return a
+func (ct *Contract) Build() *Contract {
+	return ct
 }
 
-func (a *Contract) AtAddress(address string) ContractBuilder {
-	caller, err := core.NewCaller(a.ethClient, common.HexToAddress(address))
+func (ct *Contract) AtAddress(address string) ContractBuilder {
+	caller, err := core.NewMultiCaller(ct.ethClient, common.HexToAddress(address))
 	if err != nil {
 		panic(err)
 	}
-	a.multiCaller = caller
-	return a
+	ct.multiCaller = caller
+	return ct
 }
 
-func (a *Contract) AddCall(callName string, contractAddress string, method string, args ...interface{}) *Contract {
-	callData, err := a.contractAbi.Pack(method, args...)
+func (ct *Contract) AddCall(callName string, contractAddress string, method string, args ...interface{}) *Contract {
+	callData, err := ct.contractAbi.Pack(method, args...)
 	if err != nil {
 		panic(err)
 	}
-	a.calls = append(a.calls, core.Call{
+	ct.calls = append(ct.calls, core.Call{
 		Method:   method,
 		Target:   common.HexToAddress(contractAddress),
-		Name:     callName,
+		Key:      callName,
 		CallData: callData,
 	})
-	return a
+	return ct
 }
 
-func (a *Contract) AddMethod(signature string) *Contract {
-	existCall, ok := a.rawMethods[strings.ToLower(signature)]
+func (ct *Contract) AddMethod(signature string) *Contract {
+	existCall, ok := ct.rawMethods[strings.ToLower(signature)]
 	if ok {
-		panic("Caller named " + existCall + " is exist on ABI")
+		panic("MultiCaller named " + existCall + " is exist on ABI")
 	}
-	a.rawMethods[strings.ToLower(signature)] = signature
-	a.methods = append(a.methods, parseNewMethod(signature))
-	newAbi, err := repackAbi(a.methods)
+	ct.rawMethods[strings.ToLower(signature)] = signature
+	ct.methods = append(ct.methods, parseNewMethod(signature))
+	newAbi, err := repackAbi(ct.methods)
 	if err != nil {
 		panic(err)
 	}
-	a.contractAbi = newAbi
+	ct.contractAbi = newAbi
 	if err != nil {
 		panic(err)
 	}
-	return a
+	return ct
 }
 
-func (a *Contract) Abi() abi.ABI {
-	return a.contractAbi
+func (ct *Contract) Abi() abi.ABI {
+	return ct.contractAbi
 }
 
-func (a *Contract) Call(blockNumber *big.Int) (*big.Int, map[string][]interface{}, error) {
+func (ct *Contract) Call(blockNumber *big.Int) (*big.Int, map[string][]interface{}, error) {
 	res := make(map[string][]interface{})
-	blockNumber, results, err := a.multiCaller.Execute(a.calls, blockNumber)
-	for _, call := range a.calls {
-		res[call.Name], _ = a.contractAbi.Unpack(call.Method, results[call.Name].ReturnData)
+	blockNumber, results, err := ct.multiCaller.StrictlyExecute(ct.calls, blockNumber)
+	for _, call := range ct.calls {
+		res[call.Key], _ = ct.contractAbi.Unpack(call.Method, results[call.Key].ReturnData)
 	}
-	a.ClearCall()
+	ct.ClearCall()
 	return blockNumber, res, err
 }
 
-func (a *Contract) ClearCall() {
-	a.calls = []core.Call{}
+func (ct *Contract) FlexibleCall(requireSuccess bool) (map[string][]interface{}, error) {
+	res := make(map[string][]interface{})
+	results, err := ct.multiCaller.Execute(ct.calls, requireSuccess)
+	for _, call := range ct.calls {
+		res[call.Key], _ = ct.contractAbi.Unpack(call.Method, results[call.Key].ReturnData)
+	}
+	ct.ClearCall()
+	return res, err
+}
+
+func (ct *Contract) ClearCall() {
+	ct.calls = []core.Call{}
 }
 
 func parseNewMethod(signature string) Method {
@@ -159,7 +169,7 @@ func parseNewMethod(signature string) Method {
 			for _, inParam := range params {
 				if inParam != "" {
 					newMethod.Inputs = append(newMethod.Inputs, Argument{
-						Name:         "",
+						Key:          "",
 						Type:         strings.TrimSpace(inParam),
 						InternalType: strings.TrimSpace(inParam),
 					})
@@ -172,7 +182,7 @@ func parseNewMethod(signature string) Method {
 
 		for _, outParam := range outputs {
 			newMethod.Outputs = append(newMethod.Outputs, Argument{
-				Name:         "",
+				Key:          "",
 				Type:         strings.TrimSpace(outParam),
 				InternalType: strings.TrimSpace(outParam),
 			})
@@ -186,7 +196,7 @@ func parseNewMethod(signature string) Method {
 			for _, inParam := range params {
 				if inParam != "" {
 					newMethod.Inputs = append(newMethod.Inputs, Argument{
-						Name:         "",
+						Key:          "",
 						Type:         strings.TrimSpace(inParam),
 						InternalType: strings.TrimSpace(inParam),
 					})
@@ -196,7 +206,7 @@ func parseNewMethod(signature string) Method {
 
 		returnType := strings.TrimSpace(singleReturnPaths[1])
 		newMethod.Outputs = append(newMethod.Outputs, Argument{
-			Name:         "",
+			Key:          "",
 			Type:         returnType,
 			InternalType: returnType,
 		})
