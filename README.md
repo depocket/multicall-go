@@ -35,8 +35,8 @@ import (
 )
 
 var ContractExamples = map[string]call.Chain{
-	"0xB8c77482e45F1F44dE1745F52C74426C631bDD52": call.Ethereum, // map[chain:BNB]
-	"0x0000000000000000000000000000000000000000": call.Ethereum, // map[chain:null_address]
+	"0xB8c77482e45F1F44dE1745F52C74426C631bDD52": call.Ethereum, // map[BNB:chain]
+	"0x0000000000000000000000000000000000000000": call.Ethereum, // map[null_address:chain]
 }
 
 var Contracts = []string{
