@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/depocket/multicall-go/core"
+	"github.com/depocket/multicall-go/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -19,8 +20,10 @@ type Component struct {
 }
 
 type Argument struct {
-	Component
-	Components []Component `json:"components,omitempty"`
+	Name         string      `json:"name"`
+	Type         string      `json:"type"`
+	InternalType string      `json:"internalType"`
+	Components   []Component `json:"components,omitempty"`
 }
 
 type Method struct {
@@ -184,12 +187,12 @@ func (ct *Contract) ClearCall() {
 }
 
 func parseNewMethod(signature string) Method {
+	signature = utils.CleanSpaces(signature)
 	methodPaths := strings.Split(signature, "(")
 	if len(methodPaths) <= 1 {
 		panic("Function is invalid format!")
 	}
 	methodName := strings.Replace(methodPaths[0], "function", "", 1)
-	methodName = strings.TrimSpace(methodName)
 	newMethod := Method{
 		Name:            methodName,
 		Inputs:          make([]Argument, 0),
@@ -216,23 +219,19 @@ func parseNewMethod(signature string) Method {
 			for i, inParam := range params {
 				if inParam != "" {
 					newMethod.Inputs = append(newMethod.Inputs, Argument{
-						Component: Component{
-							Name:         fmt.Sprintf("input%d", i),
-							Type:         strings.TrimSpace(inParam),
-							InternalType: strings.TrimSpace(inParam),
-						},
+						Name:         fmt.Sprintf("input%d", i),
+						Type:         inParam,
+						InternalType: inParam,
 					})
 				}
 			}
 		}
 
-		returnType := strings.TrimSpace(singleReturnPaths[1])
+		returnType := singleReturnPaths[1]
 		newMethod.Outputs = append(newMethod.Outputs, Argument{
-			Component: Component{
-				Name:         "output",
-				Type:         returnType,
-				InternalType: returnType,
-			},
+			Name:         "output",
+			Type:         returnType,
+			InternalType: returnType,
 		})
 	}
 	return newMethod
@@ -256,12 +255,10 @@ func parseArguments(path, nameFormat string) []Argument {
 		name := fmt.Sprintf(nameFormat+"%d", i)
 		argumentType, isTuple := getArgumentType(inArgument)
 		argument := Argument{
-			Component: Component{
-				Name:         name,
-				Type:         argumentType,
-				InternalType: argumentType,
-			},
-			Components: make([]Component, 0),
+			Name:         name,
+			Type:         argumentType,
+			InternalType: argumentType,
+			Components:   make([]Component, 0),
 		}
 
 		if isTuple {
@@ -273,8 +270,8 @@ func parseArguments(path, nameFormat string) []Argument {
 				argument.Components = append(argument.Components,
 					Component{
 						Name:         name + fmt.Sprintf("component%d", j),
-						Type:         strings.TrimSpace(component),
-						InternalType: strings.TrimSpace(component),
+						Type:         component,
+						InternalType: component,
 					},
 				)
 			}
@@ -291,40 +288,33 @@ func getArgumentType(inArgument string) (string, bool) {
 		}
 		return "tuple", true
 	}
-	return strings.TrimSpace(inArgument), false
+	return inArgument, false
 }
 
 func parsePath(path string) []string {
 	arguments := []string{}
 	i := 0
 	n := len(path)
-	for {
+	for i < n {
 		accumulateString := ""
 		char := string(path[i])
 		if char == "(" {
-			accumulateString += char
-			for j := i + 1; string(path[j]) != ")"; j++ {
-				accumulateString += string(path[j])
-				i = j + 1
+			for char != ")" {
+				accumulateString += char
+				i++
+				char = string(path[i])
 			}
 		}
-		for {
-			charSub := string(path[i])
-			if charSub == "," {
+		for i < n {
+			char = string(path[i])
+			if char == "," {
 				break
 			}
-			accumulateString += charSub
+			accumulateString += char
 			i++
-			if i >= n {
-				break
-			}
 		}
 		arguments = append(arguments, accumulateString)
 		i++
-		if i >= n {
-			break
-		}
-
 	}
 	return arguments
 }
