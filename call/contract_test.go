@@ -82,7 +82,8 @@ func TestContractBuilder_AddMethodTuple(t *testing.T) {
 		WithChainConfig(DefaultChainConfigs[Fantom]).
 		AddMethod("function claimableRewards(address)((address,uint256)[])").
 		AddMethod("earnedBalances(address)(uint256,(uint256,uint256)[])").
-		AddMethod("claimableRewardsTwo(address) ( (address,uint256)[], (address,address)[] )")
+		AddMethod("claimableRewardsTwo(address) ( (address,uint256)[], (address,address)[] )").
+		AddMethod("claimableRewardsThree(address)((address,uint256)[],(address,address)[], uint256,(address,address,address,uint256)[]")
 
 	assert.Equal(
 		t,
@@ -98,5 +99,10 @@ func TestContractBuilder_AddMethodTuple(t *testing.T) {
 		t,
 		caller.contractAbi.Methods["claimableRewardsTwo"].String(),
 		"function claimableRewardsTwo(address input0) view returns((address,uint256)[] output0, (address,address)[] output1)",
+	)
+	assert.Equal(
+		t,
+		caller.contractAbi.Methods["claimableRewardsThree"].String(),
+		"function claimableRewardsThree(address input0) view returns((address,uint256)[] output0, (address,address)[] output1, uint256 output2, (address,address,address,uint256)[] output3)",
 	)
 }
