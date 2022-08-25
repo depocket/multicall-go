@@ -2,19 +2,28 @@ package call
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"strings"
 
 	"github.com/depocket/multicall-go/core"
+	"github.com/depocket/multicall-go/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-type Argument struct {
-	Key          string `json:"key"`
+type Component struct {
+	Name         string `json:"name"`
 	Type         string `json:"type"`
 	InternalType string `json:"internalType"`
+}
+
+type Argument struct {
+	Name         string      `json:"name"`
+	Type         string      `json:"type"`
+	InternalType string      `json:"internalType"`
+	Components   []Component `json:"components,omitempty"`
 }
 
 type Method struct {
@@ -178,12 +187,12 @@ func (ct *Contract) ClearCall() {
 }
 
 func parseNewMethod(signature string) Method {
+	signature = utils.CleanSpaces(signature)
 	methodPaths := strings.Split(signature, "(")
 	if len(methodPaths) <= 1 {
 		panic("Function is invalid format!")
 	}
 	methodName := strings.Replace(methodPaths[0], "function", "", 1)
-	methodName = strings.TrimSpace(methodName)
 	newMethod := Method{
 		Name:            methodName,
 		Inputs:          make([]Argument, 0),
@@ -194,62 +203,38 @@ func parseNewMethod(signature string) Method {
 
 	isMultipleReturn := strings.Contains(signature, ")(")
 	if isMultipleReturn {
-		multipleReturnPaths := strings.Split(signature, ")(")
-		multipleReturnPath := multipleReturnPaths[1]
-		paramsPaths := strings.Split(multipleReturnPaths[0], "(")
-		params := parseParamsPath(paramsPaths[1])
-		if len(params) > 0 {
-			for _, inParam := range params {
-				if inParam != "" {
-					newMethod.Inputs = append(newMethod.Inputs, Argument{
-						Key:          "",
-						Type:         strings.TrimSpace(inParam),
-						InternalType: strings.TrimSpace(inParam),
-					})
-				}
-			}
-		}
+		multipleReturnPaths := strings.SplitN(signature, ")(", 2)
+		paramsPaths := strings.SplitN(multipleReturnPaths[0], "(", 2)
+		paramsPath := paramsPaths[1]
+		newMethod.Inputs = parseArguments(paramsPath, "input")
 
-		outputPath := strings.Replace(multipleReturnPath, ")", "", 1)
-		outputs := strings.Split(outputPath, ",")
-
-		for _, outParam := range outputs {
-			newMethod.Outputs = append(newMethod.Outputs, Argument{
-				Key:          "",
-				Type:         strings.TrimSpace(outParam),
-				InternalType: strings.TrimSpace(outParam),
-			})
-		}
+		outputPath := strings.TrimSuffix(multipleReturnPaths[1], ")")
+		newMethod.Outputs = parseArguments(outputPath, "output")
 	} else {
 		singleReturnPaths := strings.Split(signature, ")")
 		paramsPaths := strings.Split(singleReturnPaths[0], "(")
-		params := parseParamsPath(paramsPaths[1])
+		params := strings.Split(paramsPaths[1], ",")
 
 		if len(params) > 0 {
-			for _, inParam := range params {
+			for i, inParam := range params {
 				if inParam != "" {
 					newMethod.Inputs = append(newMethod.Inputs, Argument{
-						Key:          "",
-						Type:         strings.TrimSpace(inParam),
-						InternalType: strings.TrimSpace(inParam),
+						Name:         fmt.Sprintf("input%d", i),
+						Type:         inParam,
+						InternalType: inParam,
 					})
 				}
 			}
 		}
 
-		returnType := strings.TrimSpace(singleReturnPaths[1])
+		returnType := singleReturnPaths[1]
 		newMethod.Outputs = append(newMethod.Outputs, Argument{
-			Key:          "",
+			Name:         "output",
 			Type:         returnType,
 			InternalType: returnType,
 		})
 	}
 	return newMethod
-}
-
-func parseParamsPath(paramsPath string) []string {
-	params := strings.Split(paramsPath, ",")
-	return params
 }
 
 func repackAbi(methods []Method) (abi.ABI, error) {
@@ -258,4 +243,78 @@ func repackAbi(methods []Method) (abi.ABI, error) {
 		return abi.ABI{}, err
 	}
 	return abi.JSON(strings.NewReader(string(abiString)))
+}
+
+func parseArguments(path, nameFormat string) []Argument {
+	result := []Argument{}
+	if path == "" {
+		return result
+	}
+	arguments := parsePath(path)
+	for i, inArgument := range arguments {
+		name := fmt.Sprintf(nameFormat+"%d", i)
+		argumentType, isTuple := getArgumentType(inArgument)
+		argument := Argument{
+			Name:         name,
+			Type:         argumentType,
+			InternalType: argumentType,
+			Components:   make([]Component, 0),
+		}
+
+		if isTuple {
+			s := strings.ReplaceAll(inArgument, "(", "")
+			s = strings.ReplaceAll(s, ")", "")
+			s = strings.ReplaceAll(s, "[]", "")
+			components := strings.Split(s, ",")
+			for j, component := range components {
+				argument.Components = append(argument.Components,
+					Component{
+						Name:         name + fmt.Sprintf("component%d", j),
+						Type:         component,
+						InternalType: component,
+					},
+				)
+			}
+		}
+		result = append(result, argument)
+	}
+	return result
+}
+
+func getArgumentType(inArgument string) (string, bool) {
+	if strings.Contains(inArgument, "(") {
+		if strings.Contains(inArgument, "[]") {
+			return "tuple[]", true
+		}
+		return "tuple", true
+	}
+	return inArgument, false
+}
+
+func parsePath(path string) []string {
+	arguments := []string{}
+	i := 0
+	n := len(path)
+	for i < n {
+		accumulateString := ""
+		char := string(path[i])
+		if char == "(" {
+			for char != ")" {
+				accumulateString += char
+				i++
+				char = string(path[i])
+			}
+		}
+		for i < n {
+			char = string(path[i])
+			if char == "," {
+				break
+			}
+			accumulateString += char
+			i++
+		}
+		arguments = append(arguments, accumulateString)
+		i++
+	}
+	return arguments
 }
