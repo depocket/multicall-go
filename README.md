@@ -22,6 +22,14 @@
 go get github.com/depocket/multicall-go
 ```
 
+## Todo
+
+- [x] Multicall 
+- [x] Multicall V2
+- [x] Struct return type
+- [x] Tuple return type
+- [ ] Struct as param(s)
+
 #### Canonical example:
 
 ```go
