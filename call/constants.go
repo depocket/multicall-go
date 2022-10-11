@@ -33,7 +33,7 @@ var DefaultChainConfigs = map[Chain]ChainConfig{
 		Url:              "https://api.avax.network/ext/bc/C/rpc",
 	},
 	Bsc: {
-		MultiCallAddress: "0x41263cBA59EB80dC200F3E2544eda4ed6A90E76C",
+		MultiCallAddress: "0xAD38F5025CBe01c8637BF683B3B68096A1c882CA",
 		Url:              "https://bsc-dataseed1.ninicoin.io",
 	},
 	Ethereum: {
