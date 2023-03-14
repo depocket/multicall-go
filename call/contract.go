@@ -1,8 +1,11 @@
 package call
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/himitsuko/ethclient/ethclient"
+	"github.com/himitsuko/ethclient/rpc"
 	"math/big"
 	"strings"
 
@@ -10,7 +13,6 @@ import (
 	"github.com/depocket/multicall-go/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type Component struct {
@@ -45,6 +47,7 @@ type ContractBuilder interface {
 	AddMethod(signature string) *Contract
 	Abi() abi.ABI
 	Build() *Contract
+	Debug() *Contract
 	WithChainConfig(config ChainConfig) *Contract
 }
 
@@ -55,6 +58,13 @@ type Contract struct {
 	methods     []Method
 	calls       []core.Call
 	multiCaller *core.MultiCaller
+	debug       bool
+	logger      rpc.Logger
+}
+
+func (ct *Contract) Debug() *Contract {
+	ct.debug = true
+	return ct
 }
 
 func NewContractBuilder() ContractBuilder {
@@ -77,11 +87,25 @@ func (ct *Contract) WithChainConfig(config ChainConfig) *Contract {
 		panic(err)
 	}
 
+	if ct.debug {
+		rpc, err := rpc.DialOptions(context.TODO(), config.Url, rpc.WithDebug(ct.debug), rpc.WithLogger(ct.logger))
+		if err != nil {
+			panic(err)
+		}
+		client := ethclient.NewClient(rpc)
+		return ct.WithClient(client).AtAddress(config.MultiCallAddress).Build()
+	}
+
 	return ct.WithClient(client).AtAddress(config.MultiCallAddress).Build()
 }
 
 func (ct *Contract) WithClient(ethClient *ethclient.Client) ContractBuilder {
 	ct.ethClient = ethClient
+	return ct
+}
+
+func (ct *Contract) WithLogger(logger rpc.Logger) ContractBuilder {
+	ct.logger = logger
 	return ct
 }
 
