@@ -77,7 +77,7 @@ func (caller *MultiCaller) StrictlyExecute(calls []Call, blockNumber *big.Int) (
 	return responses[0].(*big.Int), results, nil
 }
 
-func (caller *MultiCaller) Execute(calls []Call, requireSuccess bool) (map[string]CallResponse, error) {
+func (caller *MultiCaller) Execute(ctx context.Context, calls []Call, requireSuccess bool) (map[string]CallResponse, error) {
 	var multiCalls = make([]MultiCall, 0, len(calls))
 	for _, call := range calls {
 		multiCalls = append(multiCalls, call.GetMultiCall())
@@ -86,7 +86,7 @@ func (caller *MultiCaller) Execute(calls []Call, requireSuccess bool) (map[strin
 	if err != nil {
 		return nil, err
 	}
-	resp, err := caller.Client.CallContract(context.Background(), ethereum.CallMsg{To: &caller.ContractAddress, Data: callData}, nil)
+	resp, err := caller.Client.CallContract(ctx, ethereum.CallMsg{To: &caller.ContractAddress, Data: callData}, nil)
 	if err != nil {
 		return nil, err
 	}

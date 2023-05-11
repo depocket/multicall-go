@@ -1,6 +1,7 @@
 package call
 
 import (
+	"context"
 	"math/big"
 	"testing"
 
@@ -68,7 +69,7 @@ func TestContractBuilder_FlexibleCall(t *testing.T) {
 		caller := NewContractBuilder().
 			WithChainConfig(DefaultChainConfigs[chain]).
 			AddMethod("totalSupply()(uint256)")
-		result, err := caller.AddCall("ts", address, "totalSupply").FlexibleCall(false)
+		result, err := caller.AddCall("ts", address, "totalSupply").FlexibleCall(context.TODO(), false)
 		if err != nil {
 			assert.Failf(t, "Error calling %s contract", string(chain))
 		} else {

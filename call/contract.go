@@ -1,6 +1,7 @@
 package call
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -152,9 +153,9 @@ func (ct *Contract) Call(blockNumber *big.Int) (*big.Int, map[string][]interface
 	return blockNumber, res, err
 }
 
-func (ct *Contract) FlexibleCall(requireSuccess bool) (map[string]Result, error) {
+func (ct *Contract) FlexibleCall(ctx context.Context, requireSuccess bool) (map[string]Result, error) {
 	res := make(map[string]Result)
-	results, err := ct.multiCaller.Execute(ct.calls, requireSuccess)
+	results, err := ct.multiCaller.Execute(ctx, ct.calls, requireSuccess)
 	if err != nil {
 		ct.ClearCall()
 		return nil, err
